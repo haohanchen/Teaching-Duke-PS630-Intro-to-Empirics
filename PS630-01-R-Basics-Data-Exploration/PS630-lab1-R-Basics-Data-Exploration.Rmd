@@ -1,0 +1,271 @@
+---
+title: "PS630 Lab 1 Code"
+author: "[Your Name], Haohan Chen"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE)
+```
+
+```{r install, eval=FALSE}
+# Execute this chunk of code first
+install.packages("wbstats")
+install.packages("ggplot2")
+```
+
+## Download and Install R and RStudio
+
+- Download R from here: https://cloud.r-project.org/
+- Download RStudio from here: https://www.rstudio.com/products/rstudio/download/
+
+## A Crush Course of R Data Analysis
+
+- The World Bank DataBank: http://databank.worldbank.org/data/home.aspx
+- Use APIs to access data
+- Suppose we want to analyze GDP per capita in the world in the year of 2016
+
+### Load the World Bank R package
+
+```{r}
+#------------------------------------------------
+# Our first data analysis: the World Bank data
+#------------------------------------------------
+
+# Install package: An R package that downloads data from the World Bank API
+  # install.packages("wbstats")
+
+# Load the World Bank data library
+  library(wbstats)
+```
+
+### Load data (specific to this package)
+
+```{r}
+# Search for the indicator of a variable of interest
+  search_result <- wbsearch(pattern = "GDP per capita")
+  
+# View search results
+  # View(search_result) # Equivalent to clicking the name on the Data Panel
+  
+# View the first 20 rows of the data in the console
+  head(search_result, 20)
+
+# Download data of interest
+  data <- wb(country = "all", indicator = "NY.GDP.PCAP.PP.CD", startdate = 2016, enddate = 2016)
+```
+
+### Simple Data cleaning
+
+```{r}
+# View data: what it looks like
+  # View(data)
+
+# Statistics of the dataset
+  class(data) # the type of data structure
+  dim(data) # dimension
+  names(data) # columns
+  
+# After viewing the data, we decide we don't need the first 47 rows
+  data_s1 <- data[-c(1:47), ]
+  # View(data_s1)
+  
+# After viewing the data, we decide we need only the "country" and "value" column
+  names(data_s1)
+  data_s2 <- data_s1[, c("iso3c", "country", "value")]
+
+# Rename the second column to "GDP_PAP_2016", so that the column names are more informative
+  names(data_s2)[3] <- "GDP_PAP_2016"
+  # View(data_s2)
+
+# Get the final cleaned dataset
+  data_f_gdppc <- data_s2
+  
+# Remove the intermediate product
+  rm(data, search_result, data_s1, data_s2)
+```
+
+### Get another variable: Corruption
+
+- Suppose our research question is about the correlation between corruption and economic development
+
+```{r}
+# Search for the indicator of a variable of interest
+  search_result <- wbsearch(pattern = "corruption")
+  
+# View search results
+  # View(search_result) # Equivalent to clicking the name on the Data Panel
+
+# Download data of interest: control of corruption
+  data <- wb(country = "all", indicator = "CC.EST", startdate = 2016, enddate = 2016)
+
+# Data cleaning: delete rows? No
+
+# Data cleaning: delete columns? Yes
+  data_s1 <- data[, c("country", "value")]
+
+# Change column name
+  names(data_s1)[2] <- "corruption_control_2016"
+    
+# Final dataset
+  data_f_corruption <- data_s1  
+
+# Remove intermediate product
+  rm(data, search_result, data_s1)
+```
+
+### Merging the two variables
+
+```{r}
+# Now we would like to merge the two data by the name of the country
+  data_f <- merge(data_f_gdppc, data_f_corruption, by = "country")
+# See the final product
+  # View(data_f)
+```
+
+### Plots
+
+Let's take a break from boring numbers. Draw some nice plots to describe the data
+
+#### Plots of a single variable
+
+```{r}
+#-----------
+# Histogram
+#-----------
+  # Simplist
+  hist(data_f$GDP_PAP_2016)
+
+  # add titles, labels
+  hist(data_f$GDP_PAP_2016, main = "GDP per capita 2016", xlab = "GDP per capita, PPP (current international $)", ylab = "Number of countries")
+
+  # Change the number of breaks
+  hist(data_f$GDP_PAP_2016, breaks = 5, main = "GDP per capita 2016", xlab = "GDP per capita, PPP (current international $)", ylab = "Number of countries")
+  hist(data_f$GDP_PAP_2016, breaks = 10, main = "GDP per capita 2016", xlab = "GDP per capita, PPP (current international $)", ylab = "Number of countries")
+  hist(data_f$GDP_PAP_2016, breaks = 20, main = "GDP per capita 2016", xlab = "GDP per capita, PPP (current international $)", ylab = "Number of countries")
+
+  # Add a line indicating the mean?
+  hist(data_f$GDP_PAP_2016, breaks = 10, main = "GDP per capita 2016", xlab = "GDP per capita, PPP (current international $)")
+  mean(data_f$GDP_PAP_2016)
+  abline(v = 19922.52)
+  
+  # Change the style of the abline
+  hist(data_f$GDP_PAP_2016, breaks = 10, main = "GDP per capita 2016", xlab = "GDP per capita, PPP (current international $)")
+  abline(v = 19922.52, lty = 2, col = "red", lwd = 2) #lty: line style: dotted, dashed etc. lwd: width of the line
+  
+#-----------
+# Density
+#-----------
+  # Default
+  plot(density(data_f$GDP_PAP_2016))
+  
+  # add titles, labels
+  plot(density(data_f$GDP_PAP_2016), main = "GDP per capita 2016", xlab = "GDP per capita, PPP (current international $)")
+
+  plot(density(log(data_f$GDP_PAP_2016)), main = "GDP per capita 2016", xlab = "GDP per capita, PPP (current international $)")
+  
+  
+  # Add a line indicating the mean
+  plot(density(data_f$GDP_PAP_2016), main = "GDP per capita 2016", xlab = "GDP per capita, PPP (current international $)")
+  abline(v = 19922.52, lty = 2, col = "red", lwd = 2) #lty: line style: dotted, dashed etc. lwd: width of the line
+
+#-----------
+# Boxplot
+#-----------
+  boxplot(data_f$GDP_PAP_2016, main = "GDP per capita 2016", xlab = "GDP per capita, PPP (current international $)")
+```
+
+#### Exercise: Plot statistics of the corruption variable
+
+```{r}
+
+```
+
+#### Plot two variables
+
+```{r}
+#--------------
+# Scatter plot
+#--------------
+  # default
+  plot(data_f$GDP_PAP_2016, data_f$corruption_control_2016)
+  
+  # add titles, labels
+  plot(data_f$GDP_PAP_2016, data_f$corruption_control_2016, xlab = "GDP per capita, PPP (current international $)", ylab = "Corruption Control Index", main = "Development and Corruption")
+  
+  # Change point size, style
+  plot(data_f$GDP_PAP_2016, data_f$corruption_control_2016, xlab = "GDP per capita, PPP (current international $)", ylab = "Corruption Control Index", main = "Development and Corruption", pch = 24) #see this: https://www.statmethods.net/advgraphs/images/points.png
+```
+
+### Descriptive statistics
+
+- For GDP per capita, let's calculate
+    - Mean
+    - Variance
+    - Standard deviation
+    - Other summary statistics
+- For the two variables, calculate
+    - Covariance
+    - Correlation
+
+```{r}
+#-----------------
+# Single variable
+#-----------------
+
+# Mean
+  mean(data_f$GDP_PAP_2016)
+# Variance
+  var(data_f$GDP_PAP_2016)
+# Standard deviation
+  sd(data_f$GDP_PAP_2016)
+# Quantiles
+  quantile(data_f$GDP_PAP_2016)
+  quantile(data_f$GDP_PAP_2016, c(0, 0.10, 0.20, 0.30))
+
+# Summary
+  summary(data_f$GDP_PAP_2016)
+  
+#-----------------
+# Two variables
+#-----------------
+
+# Covariance
+  cov(data_f$GDP_PAP_2016, data_f$corruption_control_2016)
+# Correlation
+  cor(data_f$GDP_PAP_2016, data_f$corruption_control_2016)
+```
+
+
+### More: Some prettier plots
+
+```{r}
+#-------------------------------------------------------
+# GGPLOT: Another package that will be our best friend
+#-------------------------------------------------------
+
+# Install package
+  # install.packages("ggplot2")
+# Load package
+  library(ggplot2)
+
+# Plot Corruption, GDP per capita relation with country names as label
+  ggplot(data_f, aes(x = GDP_PAP_2016, y = corruption_control_2016, label = country)) + 
+    geom_point() + geom_text(aes(vjust = 1)) +
+    ggtitle("Development and Corruption") + xlab("GDP per capita, PPP (current international $)") + ylab("Corruption Control Index")
+
+# Plot Corruption, GDP per capita relation with iso3c country code as label
+  ggplot(data_f, aes(x = GDP_PAP_2016, y = corruption_control_2016, label = iso3c)) + 
+    geom_point() + geom_text(aes(vjust = 1)) +
+    ggtitle("Development and Corruption") + xlab("GDP per capita, PPP (current international $)") + ylab("Corruption Control Index")
+
+# Plot corruption, GDP per capita relation with a trend line
+  ggplot(data_f, aes(x = GDP_PAP_2016, y = corruption_control_2016, label = iso3c)) + 
+    geom_point() + geom_text(aes(vjust = 1)) + geom_smooth() +
+    ggtitle("Development and Corruption") + xlab("GDP per capita, PPP (current international $)") + ylab("Corruption Control Index")
+
+# Plot corruption, GDP per capita relation with a trend line: linear
+  ggplot(data_f, aes(x = GDP_PAP_2016, y = corruption_control_2016, label = iso3c)) + 
+    geom_point() + geom_text(aes(vjust = 1)) + geom_smooth(method = "lm") +
+    ggtitle("Development and Corruption") + xlab("GDP per capita, PPP (current international $)") + ylab("Corruption Control Index")
+```

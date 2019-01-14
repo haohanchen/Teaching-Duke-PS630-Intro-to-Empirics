@@ -1,0 +1,212 @@
+---
+title: "PS630 Lab6 Notes"
+author: "Haohan Chen"
+date: "October 19, 2018"
+output: pdf_document
+---
+
+# Load the data
+
+```{r}
+load("lab6_data_exercise.Rdata")
+# Describe the dataset
+str(data_country)
+str(data_party)
+```
+
+# The package
+
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Convert data frmes to tibbles
+data_country <- as_tibble(data_country)
+data_party <- as_tibble(data_party)
+```
+
+
+
+# Review of Labs 4 and 5
+
+0. What does the `%>%` command do?
+1. Create a new dataset from `data_country`, with only variables `country_code` and `GDP_pcap_ppp`
+2. With the above dataset, create a variable `log_GDP_pcap_ppp` that is the logarithm of `GDP_pcap_ppp`
+3. With the above data, create a new dataset from `data_country`, with only observations (countries) that are in the `Advanced Capitalist` category (variable `country_category`)
+4. With the above data, sort observations by `GDP_pcap_ppp`, (1) from high to low; (2) from low to high
+5. With the above data (or data of 3), find top 5 countries in terms of GDP per capita
+
+```{r}
+# Your code here
+# 1 (select)
+data_country %>% select(country_code, GDP_pcap_ppp)
+data_country2 <- data_country %>% select(country_code, GDP_pcap_ppp)
+
+# 2 (mutate)
+# 2. With the above dataset, create a variable `log_GDP_pcap_ppp` that is the logarithm of `GDP_pcap_ppp`
+data_country %>% 
+  mutate(log_GDP_pcap_ppp = log(GDP_pcap_ppp))
+
+mutate(data_country, log_GDP_pcap_ppp = log(GDP_pcap_ppp))
+
+# 3 (filter)
+# 3. With the above data, create a new dataset from `data_country`, with only observations (countries) that are in the `Advanced Capitalist` category (variable `country_category`)
+
+data_country %>% 
+  mutate(log_GDP_pcap_ppp = log(GDP_pcap_ppp)) %>%
+  filter(country_category == "Advanced Capitalist"
+         & polity2_score > 9)
+
+
+# 4 (arrange)
+#4. With the above data, sort observations by `GDP_pcap_ppp`, (1) from high to low; (2) from low to high
+
+data_country %>% arrange(wt = GDP_pcap_ppp)
+
+data_country %>% arrange(wt = -GDP_pcap_ppp)
+
+
+
+# 5 (top_n)
+# 5. With the above data (or data of 3), find top 5 countries in terms of GDP per capita
+
+data_country %>% top_n(5, wt = GDP_pcap_ppp)
+
+data_country %>% top_n(5, wt = -GDP_pcap_ppp)
+
+
+```
+
+# New: Summarize dataset
+
+- `group_by(data, x)`: Group data into rows with the same value of `x`.
+- `summarise(data, avg = mean(x))`: Summarise data into single row of values
+- `summarise_all(data, funs(mean, var, sd))`: Apply summary function to each column. Example here: mean, variance, standard deviation
+- `summarise_at(data, vars(x, y), funs(mean, var, sd))`: Apply summary function indicated in `funs() ` to a set of variables indicated in `vars()`
+
+```{r}
+# Getting started
+data_country %>% group_by(country_category) %>%
+  summarise(avg_GDP_pcap_ppp = mean(GDP_pcap_ppp))
+
+# Anything special? How to handle it?
+data_country %>% group_by(country_category) %>%
+  summarise(avg_GDP_pcap_ppp = mean(GDP_pcap_ppp, na.rm = T))
+
+
+# Want more than one summary statistics
+data_country  %>% group_by(country_category) %>% 
+  summarise(GDP_pcap_ppp_avg = mean(GDP_pcap_ppp, na.rm = T),
+            GDP_pcap_ppp_var = var(GDP_pcap_ppp, na.rm = T),
+            GDP_pcap_ppp_sd = sd(GDP_pcap_ppp, na.rm = T),
+            nrow = n())
+
+# Get multiple summary statistics conveniently with summarise_all, summarise_at
+data_country %>% select(country_category, GDP_pcap_ppp) %>%
+  group_by(country_category) %>%
+  summarise_all(funs(mean, var, sd))
+
+data_country %>% select(country_category, GDP_pcap_ppp, polity2_score) %>%
+  group_by(country_category) %>%
+  summarise_all(
+    funs(mean(., na.rm = T), var(., na.rm = T), sd(., na.rm = T)))
+
+mean(c(1, 2, 3, 4, NA))
+mean(c(1, 2, 3, 4, NA), na.rm = T)
+
+
+data_country %>% group_by(country_category) %>% 
+  summarise_at(vars(GDP_pcap_ppp, polity2_score), 
+               funs(min, median, max, mean, var, sd))
+
+#
+data_country %>% group_by(country_category) %>%
+  mutate(avg_GDP_pcap_ppp = mean(GDP_pcap_ppp)) %>%
+  select(country_code, GDP_pcap_ppp, avg_GDP_pcap_ppp, country_category)
+
+```
+
+**Exercise:** Get minimum, maximum and median of variables GDP_pcap_ppp and polity2_score by `country_category`. Follow the codes above.
+
+```{r}
+# Your code here
+```
+
+
+**General advice: ** Keep the original, raw data; Make informative names; Handle missing values carefully.
+
+# New: Merging two datasets
+
+An critical data management tool. Not intellectually challenging, but tedious.
+
+## The Basics
+
+Useful functions merging datasets from `dplyr` include `left_join`, `right_join`, `full_join`, `inner_join`.
+
+- `left_join(a, b, by = "x1")`: Join matching rows from b to a. (Keep all in `a`)
+- `right_join(a, b, by = "x1")`: Join matching rows from a to b. (keep all in `b`)
+- `full_join(a, b, by = "x1")`: Join data. Retain all values, all rows. (keep all -- either in `a` or `b`)
+- `inner_join(a, b, by = "x1")`: Join data. Retain only rows in both sets. (only keep those in both `a` and `b`)
+
+```{r}
+# Left join
+merge_left <- data_country %>% left_join(data_party, by = "country_code")
+dim(merge_left)
+
+# Right join
+merge_right <- data_country %>% right_join(data_party, by = "country_code")
+dim(merge_right)
+
+# Full join
+merge_full <- data_country %>% full_join(data_party, by = "country_code")
+dim(merge_full)
+
+
+# Inner join
+merge_inner <- data_country %>% inner_join(data_party, by = "country_code")
+dim(merge_inner)
+
+```
+
+**Aside 1:** Matching on multiple identifiers?
+```{r}
+data_country %>% left_join(data_party, by = c("country_name", "country_code"))
+```
+
+**Aside 2:** Matching on different variable names?
+
+```{r}
+# Different variable names
+data_country %>% left_join(data_party, by = c("country_name" = "country_name", 
+                                              "country_code" = "country_code"))
+
+```
+
+## Advanced: Checking what match and what do not, and debug
+
+**Checking what do not match**: A command good for checking `anti_join`
+- `anti_join(a, b, by = "x1")`: All rows in a that do not have a match in b.
+
+```{r}
+# What countries cannot be matched with party info?
+data_country %>% anti_join(data_party, by = "country_code")
+data_party %>% anti_join(data_country, by = "country_code")
+
+
+# Exercise: What parties cannot be matched with country info?
+
+```
+
+
+
+
+## General Advice
+
+Be extremely careful in this step. It can influence the robustness of your results in unexpected ways.
+
+- Take good notes of what match and what do not match in the various datasets you merge together. 
+- Keep all raw data
+- Keep a full dataset, which is a `full_join` of all.
+- Keep a "smallest" dataset, usually the one you use to fit your full model
+

@@ -1,0 +1,190 @@
+---
+title: 'Lab 2: Project Management, Data Structure in R'
+author: Haohan Chen
+date: September 7, 2018
+output: html_document
+---
+
+## Homework
+
+1. Upload to Sakai. Submit a PDF file created with Rmarkdown, with all your text and code inside. If you haven't learned about that yet, submit a PDF of your text and an `.R` file of your code.
+2. Questions?
+
+## R Interface, Project Management
+
+1. Working directory. Always use relative path when you refer to a file.
+2. The way to make sure you start with the correct working directory: Create an R project: File --> New Project.
+3. Saving `.Rdata`? Not a good idea.
+4. Two types of files in R
+    a. `.R`: only code
+    b. `.Rmd`: code + text
+
+## Finish the remaining Lab 1 material
+
+Go to Lab 1 code
+
+## Lecture review: Generating random variables
+
+Let's Start with Professor Malesky's slides (Lecture 3, page 21):
+
+> - Knowing (or assuming) the data-generating processes (DGPs) from which our variables are formed give us leverage in describing random variables and inferring relationships between them
+>     - The DGPs are expectations of how the values of our random variables are distributed in the population
+>     - They give rise to a number of theoretical distributions-ideal-type PDFs of our variables
+
+
+Why do we need distributions? To summarize data. To simplify the complicated. I'll demonstrate how to link distribution with data with two examples.
+
+### A Continuous variable
+
+Suppose we want to study a variable $x$ and we have the following data points
+
+```{r, echo = F, result = "asis"}
+set.seed(10)
+random_num <- round(rnorm(100, 0, 1), 2)
+cat(paste(random_num, collapse = ", "))
+```
+
+What do we do with this long list of number? What if we have 1000, 10000 or more data points? We need to summarize it in some way.
+```{r, fig.align='center', fig.width=8, fig.height=4, out.width="80%"}
+par(mfrow = c(1, 2)) # Plot two graphs side by side
+hist(random_num, main = "Histogram, Simulated data", xlab = "x") # Plot histogram
+plot(density(random_num), main = "Density, Simulated data", xlab = "x") # Plot density
+```
+
+We also want to be able to know the *next* number we can obtain from this sequence. Upon observation, we say that the set of random number is *generated* from a normal distribution with mean 0 and variance 1. Here we make an assumption about the **Data Generating Process** as mentioned in Professor Malesky's slide. With this assumption of data generating process, the probability density function can be specified with the following formula
+
+\begin{equation*}
+f(x) = \frac{1}{\sqrt{2 \pi \sigma^2}} e^{-\frac{(x  - \mu)^2}{2 \sigma^2}}
+\end{equation*}
+
+Let's plot ths above function and see what we get. First we define an R function of the above formula as below.
+
+```{r}
+# This is the PDF function that returns the density
+normal_pdf <- function(x, mu, sigma){
+  f <- 1 / (sqrt(2 * pi * sigma)) * exp(-(x - mu)^2 / 2 * sigma^2)
+  return(f)
+}
+```
+
+Then we simulate a sequence of $x$ and their corresponding density.
+```{r}
+# Simulate theoretical density of Normal distribution with mean 0, variance 1
+x_sim <- seq(-4, 4, 0.1)
+density_sim <- sapply(x_sim, function(x) normal_pdf(x, 0, 1))
+```
+
+Finally, we can plot the density of a Normal distribution with mean 0 and variance 1.
+```{r}
+# Plot density of the random number with density of N(0, 1)
+plot(x_sim, density_sim, "l", col = "red", lwd = 2, main = "Density", xlab = "x", ylab = "Density", ylim = c(0, 0.5))
+  # "l": plot as line; col: set color; lwd set line width, main: set title of graph
+lines(density(random_num))
+```
+
+### A Discrete Variable
+
+Now, we look at another example. Suppose we observe a variable $y$ of positive integers. It could be count of number of conflicts, number of female politicians running for office, count of protests, etc.
+
+```{r, echo = F, result = "asis"}
+set.seed(10)
+random_num <- rpois(100, 5)
+cat(paste(random_num, collapse = ", "))
+```
+
+Again, we want to summarize this data in a concise way, especially when data is big. Also we want to infer what number can we expect to get next.
+```{r, fig.align='center', fig.width=8, fig.height=4, out.width="80%"}
+par(mfrow = c(1, 2)) # Plot two graphs side by side
+hist(random_num, main = "Histogram, Simulated data", xlab = "x") # Plot histogram
+plot(prop.table(table(random_num))) # Proportion of each number
+```
+
+We can use a typical distribution to describe the data, the Poisson distribution. Its Probability Mass Function is
+\begin{equation*}
+f(y) = \frac{\lambda^y e^{-\lambda}}{y!}
+\end{equation*}
+
+Plotting this Probability Mass Function
+```{r}
+pois_pmf <- function(y, lambda){
+  pmf <- (lambda^y * exp(-lambda)) / factorial(y)
+  return(pmf)
+}
+
+y_sim <- 0:12
+density_sim <- sapply(y_sim, function(y) pois_pmf(y, 5))
+```
+
+```{r, fig.align='center', fig.height=4, fig.width=8, out.width="80%"}
+par(mfrow = c(1, 2))
+# Plot probability mass function
+plot(y_sim, density_sim, "h", ylab = "y", main = "PMF, Pois(5)")
+points(y_sim, density_sim, pch = 20)
+# Plot the observed data again
+plot(prop.table(table(random_num)), xlab = "y", main = "Frequency Table")
+```
+
+This is it. We use a set of ditribution to summarize our data. In our real life, we do not know the parameters (for instance, $\mu, \sigma$ of the normal distribution, $\lambda$ of the Poisson distribution). So we use various methods to estimate them. This is the major task of this course and a thousands of other statistics courses!
+
+### Functions Generating Random Variables
+
+Some useful functions you can use to generate random variables or get the density, probability of a random variable from a given distribution.
+```{r}
+# For normal distribution
+rnorm(10, 0, 1) # Generate random numbers from a known distribution. number of random variables, mean, standard deviation
+qnorm(0.5, 0, 1) # Given a cumulative density of a known distribution, get the value of the variable
+pnorm(0, 0, 1) # Given a random variable x, know its cumulative probability
+```
+
+```{r, eval=FALSE}
+# Try it with other distributions
+rt; qt; pt # Student-t distribution
+runif; qunif; punif # Uniform distribution
+rpois; qpois; ppois # Poisson distribution
+rbinom; qbinom; pbinom # Binomial distribution. Bernoulli distribution is just a special case of this
+```
+
+
+## R Data Structure
+
+Material from `Advanced R`: http://adv-r.had.co.nz/Data-structures.html
+
+### Vectors
+```{r}
+# A numeric vector
+vec_num <- c(1, 2, 3)
+vec_num
+
+# A vector of strings
+vec_string <- c("a", "b", "c")
+vec_string
+
+# Merge vectors
+vec1 <- c(2, 3, 4)
+vec2 <- c(5, 4, 2)
+c(vec1, vec2)
+
+# Check data structure, and type of data
+typeof(vec_num)
+typeof(vec_string)
+
+# Check if it is numeric, if it is string
+is.numeric(vec_num); is.character(vec_num)
+is.numeric(vec_string); is.character(vec_string)
+
+# Coersion into type
+vec_coerce <- c("1", "3", "7") # make a vector of characters
+typeof(vec_coerce) # check type
+as.numeric(vec_coerce) # coerce into numeric
+
+# Check length of vector
+length(vec_num)
+
+# Summarize vector
+summary(vec_num)
+summary(vec_string)
+```
+
+## Next Lab
+
+Other data structures: List, Matrix, Dataframe

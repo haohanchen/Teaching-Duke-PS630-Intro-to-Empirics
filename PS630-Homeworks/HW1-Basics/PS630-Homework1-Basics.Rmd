@@ -1,0 +1,49 @@
+---
+title: "POLSCI630 Homework 1"
+author: "Haohan Chen"
+date: "September 3, 2018"
+output: pdf_document
+---
+
+# Instruction
+
+- All answers, including text and code, should be your own work. Cite your sources if you consults. If you work with a classmate on a question, indicate her name.
+- Document the steps towards your results (codes, mathematic derivations etc.). But be concise. 
+
+# Concept (4 Point)
+
+1. See the 3 graphs of a random variable below and answer the following questions
+    - Which one is the plot of a probability density function (PDF)? Which one is the plot of a cumulative density function (CDF)? Which one is a histogram? (1pt)
+    - What are PDF and CDF? Name their important properties (0.5pt)
+    - From which family of distribution do you think this random variable is generated? (0.5pt)
+```{r, out.width="80%", fig.height=4, fig.width=12, echo = F, fig.align='center'}
+par(mfrow = c(1, 3))
+plot(seq(-5, 5, 0.1), pnorm(seq(-5, 5, 0.1)), "l", xlab = "x", ylab = "?")
+plot(seq(-5, 5, 0.1), dnorm(seq(-5, 5, 0.1)), "l", xlab = "x", ylab = "?")
+hist(rnorm(1000), main = "", xlab = "")
+```
+
+2. Assume we have a sample of the following two random variables (2pt)
+\begin{gather*}
+  x = \{3.6, 9.6, 3.1, -6.2, 14.7, 4.6, 5.4, 12.1, -0.7, -5.4\} \\
+  y = \{-0.4, -0.3, 0, 0, -0.3, -0.7, -0.7, -0.7, -0.8, 0.9\}
+\end{gather*}
+
+Calculate the sample means, variances, standard deviations of $x, y$. Calculate the covariance and correlation of the two variable. Show the formula of your calculation.
+
+# R Programming (6 Point)
+
+Refer to the lab code. Choose two variables you are interested in. Download data of TWO variables from the World Bank DataBank. Complete the following tasks:
+
+1. Calculate the means, medians, variances and standard deviations of each variable. (1pt)
+2. Calculate the covariance and correlation of each variable. (1pt)
+3. Plot the histogram and the densities of each variable. (1pt)
+4. Draw a scatter plot of the two variables. (1pt)
+5. Briefly discuss: What pattern do you find in the data? Any hypothesis coming out of the pattern? (Word limit: 200 words max) (2pt)
+
+Note: Show all your code. You can submit your code in an separate `.R` file, or put everything together using `Rmarkdown`.
+
+# Bonus: Tell Us Something About Yourself (Bonus: 2 point)
+
+Briefly describe 1-3 research topic(s) or question(s) you are interested in. How do you expect this course to help you study them? Depending on where you are in developing these ideas, you can choose the level of specificity of description. This will help us TA understand your need (Word limit: 300 words max)
+

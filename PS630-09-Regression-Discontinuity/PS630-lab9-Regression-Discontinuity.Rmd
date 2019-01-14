@@ -1,0 +1,242 @@
+---
+title: "PS630 Lab: RDD and Matching"
+author: "Haohan Chen"
+date: "November 30, 2018"
+output: pdf_document
+---
+
+**Disclaimer: ** I'm using lots of online resources for this tutorial...
+
+```{r, include=FALSE}
+# Install packages
+pkgs = c("rdd", "MatchIt", "tidyverse")
+to_install = pkgs[which(!pkgs %in% installed.packages()[, 1])]
+lapply(to_install, install.packages)
+```
+
+## Regression Discontinuity
+
+
+The paper:
+
+Carpenter, Christopher, and Carlos Dobkin. "The effect of alcohol consumption on mortality: regression discontinuity evidence from the minimum drinking age." American Economic Journal: Applied Economics 1, no. 1 (2009): 164-82.
+
+**Topic: ** The effect of alcohol consumption on mortality
+
+### Software Setup
+
+```{r}
+#---------------
+# Package
+#---------------
+library(rdd)
+
+#---------------
+# Package
+#---------------
+library(readstata13)
+AEJfigs = read.dta13("AEJfigs.dta")
+
+#---------------
+# Data cleaning
+#---------------
+# All = all deaths
+AEJfigs$age = AEJfigs$agecell - 21
+AEJfigs$over21 = ifelse(AEJfigs$agecell >= 21,1,0)
+```
+
+### RD Model: Age cutpoint and Overall Mortality
+
+#### Model Fit
+
+```{r}
+#---------------
+# Fit RD model
+#---------------
+reg.1=RDestimate(all~agecell,data=AEJfigs,cutpoint = 21)
+```
+
+#### Check Assumptions
+
+```{r}
+plot(reg.1)
+title(main="All Causes of Death", xlab="AGE",ylab="Mortality rate from all causes (per 100,000)")
+```
+
+#### Results
+
+```{r}
+summary(reg.1)
+```
+
+### Other DVs: Death 
+
+#### Motor Vehicle Accident
+
+```{r}
+reg.2=RDestimate(mva~agecell,data=AEJfigs,cutpoint = 21)
+plot(reg.2)
+title(main="Motor Vehicle Accidents Death", xlab="AGE",ylab="Mortality rate from all causes (per 100,000)")
+summary(reg.2)
+```
+
+#### Internal Cause of Death
+
+```{r}
+reg.3=RDestimate(internal~agecell,data=AEJfigs,cutpoint = 21)
+plot(reg.3)
+title(main="Internal Causes of Death", xlab="AGE",ylab="Mortality rate from all causes (per 100,000)")
+summary(reg.3)
+```
+
+**Further reading: ** https://rpubs.com/cuborican/RDD
+
+
+
+## Matching
+
+Example: 
+
+"Causal Effects in Non-Experimental Studies: Reevaluating the Evaluation of Training Programs," Journal of the American Statistical Association, Vol. 94, No. 448 (December 1999), pp. 1053-1062. 
+
+**Topic: ** The effect on trainee earnings of an employment program
+
+### Software Setup
+
+```{r}
+#---------------
+# load packages
+#---------------
+library(MatchIt)
+# Political scientists package
+# https://cran.r-project.org/web/packages/MatchIt/MatchIt.pdf
+
+# Alternative packages: Matching, designmatch
+# https://cran.r-project.org/web/packages/Matching/Matching.pdf
+# https://cran.r-project.org/web/packages/designmatch/designmatch.pdf
+
+library(tidyverse)
+
+#---------------
+# load dataset
+#---------------
+data("lalonde")
+names(lalonde)
+```
+
+### Difference in Mean
+
+```{r}
+# Table
+lalonde %>%
+  group_by(treat) %>%
+  select(treat, re74, re75, re78) %>%
+  summarise_all(funs(mean, sd))
+```
+
+```{r}
+# Plot (without error)
+lalonde %>%
+  group_by(treat) %>%
+  select(treat, re74, re75, re78) %>%
+  summarise_all(funs(mean, lo = quantile(., 0.025), hi = quantile(., 0.975))) %>%
+  gather(key, value, -treat) %>%
+  mutate(year = as.integer(substr(key, 3, 4)), 
+         stat = substr(key, 6, 10),
+         treat = as.factor(treat)) %>%
+  select(-key) %>%
+  spread(stat, value) %>%
+  ggplot(aes(x = year, y = mean, color = treat)) + geom_point() + geom_line()
+  
+# Plot (with variance)
+lalonde %>%
+  group_by(treat) %>%
+  select(treat, re74, re75, re78) %>%
+  summarise_all(funs(mean, lo = quantile(., 0.025), hi = quantile(., 0.975))) %>%
+  gather(key, value, -treat) %>%
+  mutate(year = as.integer(substr(key, 3, 4)), 
+         stat = substr(key, 6, 10),
+         treat = as.factor(treat)) %>%
+  select(-key) %>%
+  spread(stat, value) %>%
+  ggplot(aes(x = year, y = mean, color = treat)) + geom_point() + geom_line() +
+  geom_errorbar(aes(ymin = lo, ymax = hi), width=0.2)
+
+```
+
+### Two-sample t-test
+
+```{r}
+# Earning Growth
+#----------------
+t.test(re78 - re75 ~ treat, data = lalonde)
+# Remember what we did?
+```
+
+### Checking Balance in Covariates
+
+```{r}
+# Get a sense of the imbalance
+lalonde %>%
+  group_by(treat) %>%
+  select(age, educ, black, hispan, married, nodegree) %>%
+  summarise_all(funs(mean)) %>%
+  gather(key, value, -treat) %>%
+  spread(treat, value) %>%
+  setNames(c("Covariate", "Control", "Treated")) %>%
+  mutate(`T - C` = Treated - Control)
+```
+
+```{r}
+# A statistical summary of their difference
+vars = c("age", "educ", "black", "hispan", "married", "nodegree")
+ttests = apply(lalonde[, vars], 2, function(x) t.test(x ~ lalonde$treat))
+
+# T statistics
+sapply(ttests, function(x) x$statistic["t"])
+
+# p value
+sapply(ttests, function(x) x$p.value)
+```
+
+### Propensity Score Estimation
+
+#### Fit PS Model
+
+```{r}
+m_ps = glm(treat ~ age + educ + black + hispan + married + nodegree, 
+           family = binomial(link="logit"), data = lalonde)
+summary(m_ps)
+```
+
+#### Predict PS Score
+
+```{r}
+?predict
+ps = predict(m_ps)
+lalonde_ps = lalonde %>% mutate(propensity_score = ps)
+```
+
+#### Check overlap
+
+```{r}
+lalonde_ps %>%
+  ggplot(aes(x = propensity_score, fill = factor(treat))) +
+  geom_density(alpha = 0.5)
+```
+
+#### Matching with the propensity score
+
+Some more complication. Luckily, we have an one-stop solution!
+
+#### One-Stop Solution
+
+```{r}
+m_matchit = 
+  matchit(treat ~ age + educ + black + hispan + nodegree + married + re74 + re75, 
+        data = lalonde, method = "nearest", distance = "logit")
+
+summary(m_matchit)
+```
+
+**Further reading: ** https://sejdemyr.github.io/r-tutorials/statistics/tutorial8.html

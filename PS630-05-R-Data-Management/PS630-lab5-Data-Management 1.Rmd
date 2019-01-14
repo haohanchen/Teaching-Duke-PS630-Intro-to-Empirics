@@ -1,0 +1,79 @@
+---
+title: "More `dplyr` and `tidyr`"
+author: 
+  - "Haohan Chen^[Political Science Department, Duke University. haohan.chen@duke.edu]"
+date: "October 5, 2018"
+fontsize: 11pt
+geometry: margin=1cm
+linkcolor: blue
+output: 
+  pdf_document:
+    number_sections: false
+    keep_tex: true
+    fig_caption: true
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
+# Download an example dataset
+
+```{r}
+# Just to show how the data is downloaded, in case you are curious.
+# Data downloade from ICPSR: https://www.icpsr.umich.edu/icpsrweb/ICPSR/
+
+# if (!"psData" %in% installed.packages()[, 1]){
+#   install.packages("psData")
+# }
+# 
+# library(psData)
+# polity <- PolityGet()
+# save(polity, file = "polity.Rdata")
+```
+
+# Load the data and libraries
+
+```{r}
+# Libraries
+library(dplyr)
+library(tidyr)
+
+# Data
+load("polity.Rdata")
+polity <- as_tibble(polity)
+```
+
+# Review: What you have learned
+
+- `select`, `filter`, `arrange`, `mutate`. What do they do?
+- Exercise: Get the variables `country` and `polity` of the "Uganda" from 1990-2000, sort it form largest to smallest.
+
+Note: Note that POLITY score captures political regime authority spectrum on a 21-pont scale ranging from -10 (hereditary monarchy) to +10 (consolidated democracy). The Polity scores can also be converted into regime categories in a suggested three part categorization of "autocracies" (-10 to -6), "anocracies" (-5 to +5 and three special values: -66, -77 and -88), and "democracies" (+6 to +10). Performance score from 0 to 100. The highest score reflects the best situation.
+
+```{r}
+polity %>% filter(country == "Brazil") %>% select(country, year, polity2) %>% arrange(-polity2)
+```
+
+# New
+
+- group_by, summarise: Get the mean, maximum, minimum, median, standard deviation of `polity2` for each country from 1990-2000.
+- slice: Get the first 10 rows
+- reshape dataset: long <- wide: Get a wide-form dataset of 2000-2005, Each year as a column
+
+```{r}
+polity %>% 
+  filter(year %in% c(2000:2005)) %>%
+  select(country, year, polity2) %>% 
+  spread(year, polity2)
+```
+
+
+
+# More information
+
+- **Must read:** https://www.rstudio.com/wp-content/uploads/2015/02/data-wrangling-cheatsheet.pdf
+- Some tutorials with examples:
+    - https://rpubs.com/bradleyboehmke/data_wrangling
+    - http://garrettgman.github.io/tidying/

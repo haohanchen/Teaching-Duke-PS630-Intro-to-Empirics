@@ -1,0 +1,261 @@
+---
+title: 'PS630 Lab: Interaction Effect'
+author: "Haohan Chen"
+date: "November 16, 2018"
+output: html_document
+---
+
+## Load the Package
+
+```{r, message = F, warning = F}
+library(readstata13)
+d = readstata13::read.dta13("TeachingRatings.dta")
+
+library(tidyverse)
+```
+
+## Fit a Model
+
+```{r}
+m = lm(course_eval ~ beauty + female + age + minority + age:minority + onecredit + nnenglish, data = d)
+summary(m)
+```
+
+## What is the model?
+
+$$
+course\_eval_i = \beta_0 + \beta_1 beauty_i + \beta_2 female_i + \beta_3 age_i + \beta_4 minority_i + \beta_5 age_i \times minority_i  + \beta_6 onecredit_i + \beta_7 nnenglish_i + \varepsilon_i
+$$
+
+With the above model fit
+
+$$
+\hat{course\_eval_i} = \hat{\beta}_0 + \hat{\beta}_1 beauty_i + \hat{\beta}_2 female_i + \hat{\beta}_3 age_i + \hat{\beta}_4 minority_i + \hat{\beta}_5 age_i \times minority_i  + \hat{\beta}_6 onecredit_i + \hat{\beta}_7 nnenglish_i
+$$
+
+## Interpretation
+
+### Question 1a: What is the marginal effect of `beauty` on `course_eval`?
+
+$$
+\frac{\partial \hat{course\_eval}}{\partial beauty} = \hat{\beta}_1
+$$
+
+Note: `beauty` is a continuous variable
+
+Answer: One unit increase in `beauty` is associated with $\hat{\beta}_1$  change in `course_eval`.
+
+### Question 1b
+
+Hypothetically, if `beauty` is a dummy variable (say, `beauty=1` means good-looking and `beauty=0` means otherwise), what is the marginal effect?
+
+Answer: When `beauty` change from 0 to 1, `course_eval` change by $\hat{\beta}_1$. 
+
+### Question 2: What is the marginal effect of `age` on `course_eval`
+
+$$
+\frac{\partial \hat{course\_eval}}{\partial age} = \hat{\beta}_3 + \hat{\beta}_5 \times minority
+$$
+
+Note: This is a *continuous* variable.
+
+Answer: One unit increase in `age` is associated with $\hat{\beta}_3 + \hat{\beta}_5 \times minority$ units increase of `course_eval`
+
+### Question 3: What is the marginal effect of `minority` on `course_eval`
+
+$$
+\frac{\partial \hat{course\_eval}}{\partial minority} = \hat{\beta}_4 + \hat{\beta}_5 \times age
+$$
+
+Note: This is a *dummy* variable which only takes values 0 and 1.
+
+Answer: When `minority` change from 0 to 1, `course_eval` change by $\hat{\beta}_4 + \hat{\beta}_5 \times age$.
+
+
+## Obtaining the Coefficitns: Estimates and Uncertainty
+
+We can obtain $\beta$'s and their confidence intervals with the functions provided by the `lm` package. We can also do it in a Monte Carlo way. That is, we simulate a set of coefficients to account for its uncertainty.
+
+**You need not understand the details of the Monte Carlo approach**. It is actually much more straightfoward that it sounds. Useful materials:
+
+- Multivariate Normal Distribution: https://en.wikipedia.org/wiki/Multivariate_normal_distribution. This Explain what we do with the `mvrnorm` function.
+- Central Limit Theorem: This explain why we want to use multivariate normal distribution to simulate the coefficients. https://en.wikipedia.org/wiki/Central_limit_theorem
+- A not-so-technical overview of this method with examples in R: https://aosmith.rbind.io/2018/01/09/simulate-simulate-part1/
+ 
+```{r}
+# Getting the coefficients and confidence interval from the model directly
+# Easier way. Black box, not flexible
+coef(m)
+confint(m)
+
+# The Monte Carlo approach
+###########################
+beta_m = coef(m) # mean (estimated) coefficients
+beta_vcov = vcov(m) # Variance-covariance matrix of the coefficients
+# Simulate beta's
+set.seed(1111) # Set a seed so that you replicate the result
+beta_sim = MASS::mvrnorm(n = 1000, mu = beta_m, Sigma = beta_vcov)
+```
+
+Let's take a look at what we get
+
+```{r}
+head(beta_sim)
+```
+
+We can first try to obtain what we can get from the `lm` function (`confint`)
+
+```{r}
+# Compare with what you get from confint
+###########################################
+beta_sim %>%
+  apply(2, function(x) quantile(x, c(0.025, 0.975))) %>%
+  t()
+confint(m)
+```
+
+```{r}
+# Get the 3 critical quantiles all together (2.5%, 50%, 97.5%)
+###############################################################
+
+coef_CI = beta_sim %>%
+  apply(2, function(x) quantile(x, c(0.025, 0.05, 0.5, 0.95, 0.975))) %>%
+  t()
+coef_CI
+```
+
+## Plot the coefficients
+
+```{r}
+# How to plot it with ggplot?
+coef_CI %>%
+  as.data.frame() %>%
+  rownames_to_column() %>%
+  ggplot(aes(x = rowname, y = `50%`)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0.2) +
+  # geom_linerange(aes(ymin = `5%`, ymax = `95%`), size = 1) + # if you want to plot 90% CI additionally
+  geom_hline(yintercept = 0, color = "red", linetype = 2) + 
+  xlab("Variable Names") + ylab("Coefficients (95% Confidence Interval)") +
+  coord_flip()
+
+# Aside: want to adjust the order of coefficients?
+# Make row names a factor whose levels you manually order
+# Copy the above code
+
+coef_CI %>%
+  as.data.frame() %>%
+  rownames_to_column() %>%
+  mutate(rowname = factor(rowname, levels = rev(c("age", "minority", "age:minority", "beauty", "female", "onecredit", "nnenglish", "(Intercept)")))) %>%
+  # Note on rev -- to take care of the consequence of coord_flip
+  ggplot(aes(x = rowname, y = `50%`)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0.2) +
+  geom_linerange(aes(ymin = `5%`, ymax = `95%`), size = 1) +
+  geom_hline(yintercept = 0, color = "red", linetype = 2) + 
+  xlab("Variable Names") + ylab("Coefficients (95% Confidence Interval)") +
+  coord_flip()
+
+# Play with the above code by commenting out some lines to see what change.
+```
+
+## Plotting the Marginal Effect of a Variable
+
+Back to the business: How do we plot the interaction effect?? Let's set it straight, what are the variables of the x-axis and the y-axis?
+
+### Marginal effect of a continuous variable that has no interaction effect
+
+Example: We would like to plot the marginal effect of `beauty` on `course_eval`
+
+- x-Axis: Value of ?? (anything, the marginal effect is constant conditional on any other independent variables)
+- y-Axis: Value of $\frac{\partial \hat{course\_eval}}{\partial beauty} = \beta_1$
+
+No interaction effect. This means the marginal effect of ``beauty` is constant. There isn't much value to visualize it (though you can!)
+
+
+### Marginal effect of a dummy variable that interacts with a continuous variable
+
+Example: We would like to plot the marginal effect of `minority` on `course_eval`
+
+- x-Axis: Value of `age`
+- y-Axis: Value of $\hat{\beta}_4 + \hat{\beta}_5 \times age$
+
+```{r}
+# Step 0: Does the marignal effect depend on any other variables?
+# Yes. Age
+
+# Step 1: Get summary statistics of the variables identified in the above step
+summary(d$age)
+
+# Step 2: Simulate a sequence of the variable of interest in its range
+age_sim = seq(min(d$age), max(d$age), length.out=20)
+
+# Step 3: Multiply the sequence with the simulated beta's
+quantiles = c(0.025, 0.5, 0.975)
+
+me_minority = apply(beta_sim[, c("age", "age:minority")], 1, function(x) x["age"] * 1 + x["age:minority"] * age_sim) %>%
+  apply(1, function(x) quantile(x, quantiles)) %>%
+  as.data.frame() %>%
+  t() %>%
+  as.data.frame() %>%
+  mutate(variable = age_sim)
+
+me_minority
+
+me_minority %>% 
+  ggplot(aes(x = variable, y = `50%`)) +
+  geom_line() + geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), color = "darkgray") +
+  geom_hline(yintercept = 0, color = "red", linetype = 2) +
+  xlab("age") + ylab("Marginal Effect of Minority Status")
+
+me_minority %>% 
+  ggplot(aes(x = variable, y = `50%`)) +
+  geom_line() + geom_ribbon(aes(ymin = `2.5%`, ymax = `97.5%`), alpha = 0.3) + 
+  geom_hline(yintercept = 0, color = "red", linetype = 2) +
+  xlab("age") + ylab("Marginal Effect of Minority Status")
+```
+
+### Marginal effect of a continuous variable that interacts with a dummy variable
+
+Example: We would like to plot the marginal effect of `minority` on `course_eval`
+
+- x-Axis: Value of `beauty`
+- y-Axis: Value of $\hat{\beta}_4 + \hat{\beta}_5 \times age$
+
+```{r}
+# Step 0: Does the marignal effect depend on any other variables?
+# Yes. minority
+
+# Step 1: Get summary statistics of the variables identified in the above step
+table(d$minority)
+
+# Step 2: Simulate a sequence of the variable of interest in its range
+minority_sim = c(0, 1)
+
+# Step 3: Multiply the sequence with the simulated beta's
+quantiles = c(0.025, 0.5, 0.975)
+
+me_age = apply(beta_sim[, c("minority", "age:minority")], 1, function(x) x["minority"] * 1 + x["age:minority"] * minority_sim) %>%
+  apply(1, function(x) quantile(x, quantiles)) %>%
+  as.data.frame() %>%
+  t() %>%
+  as.data.frame() %>%
+  mutate(variable = minority_sim)
+
+# Plot: using the original code: Bad
+# Problem: An informative plot for a variable interacting with a dummy is slightly different.
+me_age %>% 
+  ggplot(aes(x = variable, y = `50%`)) +
+  geom_line() + geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), color = "darkgray") +
+  geom_hline(yintercept = 0, color = "red", linetype = 2) +
+  xlab("minority") + ylab("Marginal Effect of Age")
+
+me_age %>% 
+  mutate(variable = factor(variable)) %>%
+  ggplot(aes(x = variable, y = `50%`)) +
+  geom_point() +
+  geom_line(aes(group = 1)) + geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0.1) +
+  geom_hline(yintercept = 0, color = "red", linetype = 2) +
+  xlab("minority") + ylab("Marginal Effect of Age")
+# This also apply for interaction with categorical variables (more than two classes)
+```
