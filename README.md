@@ -8,7 +8,7 @@
 
 [Lab 5 Introduction to Rmarkdown](../../tree/master/05-Intro-to-Rmarkdown): My favorite tool for reproducible research (a possible substitute for LaTeX), demonstrated with a case.
 
-[Lab 5 (2) Data Management with R](../../tree/master/05-R-Data-Management): Data cleaning with R using dplyr, tidyr.
+[Lab 5 (2) Data Management with R](../../tree/master/05-R-Data-Management): Data cleaning with R using `dplyr`, `tidyr`.
 
 [Lab 8 Interaction Effect](../../tree/master/08-Interaction-Effect): What is an interaction effect? How to interpret it? How to visualize it? (Probabily THE most important knowledge to learn for quantitative political science studies using observational or experimental data)
 
