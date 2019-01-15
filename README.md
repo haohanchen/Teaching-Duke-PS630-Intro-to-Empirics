@@ -1,4 +1,4 @@
-## Lab Handouts and Code for POLSCI630 Probability and Regression (Sp18)
+## Lab Handouts and Code for POLSCI630 Probability and Regression (Fall 2018)
 
 *Haohan Chen*
 
